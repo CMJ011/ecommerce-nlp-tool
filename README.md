@@ -38,8 +38,7 @@
 <img width="1903" height="965" alt="demo2" src="https://github.com/user-attachments/assets/60357bba-2dba-4253-925a-cdadb496e7ce" />
 
 
-## 🚀 快速开始![Uploading demo1.png…]()
-
+## 🚀 快速开始
 
 ### 1. 环境准备
 克隆项目并在本地创建虚拟环境：
