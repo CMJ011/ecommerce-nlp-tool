@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能商业洞察 | 评论分析系统</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+    <style>
+        /* 大厂 SaaS 蓝白配色方案 */
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary-color: #1677ff; /* 经典商业蓝 */
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+            --border-color: #e5e7eb;
+            --pos-color: #10b981;
+            --neg-color: #ef4444;
+            --neu-color: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            height: 64px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .brand { font-size: 20px; font-weight: 600; color: var(--primary-color); display: flex; align-items: center; gap: 8px; }
+        
+        .upload-btn {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .upload-btn:hover { background: #0958d9; }
+        .upload-btn input { display: none; }
+
+        /* 主内容区 */
+        .main-content {
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex: 1;
+        }
+
+        /* KPI 数据卡片行 */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .kpi-title { font-size: 14px; color: var(--text-sub); font-weight: 500; }
+        .kpi-value { font-size: 32px; font-weight: 700; color: var(--text-main); font-family: 'DIN Alternate', 'Helvetica Neue', sans-serif; }
+        
+        /* 数字高亮色 */
+        .text-pos { color: var(--pos-color); }
+        .text-neg { color: var(--neg-color); }
+        .text-neu { color: var(--neu-color); }
+
+        /* 图表与关键词区 */
+        .data-row {
+            display: grid;
+            grid-template-columns: 4fr 6fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-color);
+            padding-bottom: 12px;
+        }
+
+        #pieChart { width: 100%; height: 240px; }
+
+        /* 关键词面板 */
+        .kw-section { display: flex; flex-direction: column; gap: 20px; flex: 1; }
+        
+        .kw-group { display: flex; flex-direction: column; gap: 10px; }
+        .kw-group-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        
+        .kw-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        
+        /* 商业化 Tag 样式 */
+        .tag { 
+            font-size: 13px; 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            background: #f3f4f6; 
+            color: #374151; 
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+        .tag:hover { background: #e5e7eb; transform: translateY(-1px); }
+
+        .tag.pos { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+        .tag.neg { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+        .tag.neu { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+
+        /* 加载中遮罩 */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1000; flex-direction: column; gap: 16px;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: var(--primary-color);
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            智能商业洞察系统
+        </div>
+        <label class="upload-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            导入数据 (CSV)
+            <input type="file" id="fileInput" accept=".csv" onchange="handleFileUpload(event)">
+        </label>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <div style="color: var(--primary-color); font-weight: 500;">AI 引擎正在高速分析数据...</div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        
+        <!-- KPI 数据汇总 -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-title">累计分析评论数</div>
+                <div class="kpi-value" id="kpi-total">--</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">正面评价 (条)</div>
+                <div class="kpi-value text-pos" id="kpi-pos">--</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">中评 (条)</div>
+                <div class="kpi-value text-neu" id="kpi-neu">--</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">负面评价 (条)</div>
+                <div class="kpi-value text-neg" id="kpi-neg">--</div>
+            </div>
+        </div>
+
+        <!-- 图表与词云 -->
+        <div class="data-row">
+            <!-- 左侧：饼图 + 商业指标进度条 -->
+            <div class="card" style="display: flex; flex-direction: column;">
+                <div class="card-header">情感分布占比</div>
+                
+                <!-- 图表区域 -->
+                <div id="pieChart"></div>
+                
+                <!-- 下方指标进度条 -->
+                <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 15px;">
+                    <!-- 好评率 -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #4b5563;">好评率 (正面占比)</span>
+                            <span id="rate-pos-text" style="font-weight: bold; color: var(--pos-color);">--%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
+                            <div id="rate-pos-bar" style="height: 100%; width: 0%; background: var(--pos-color); border-radius: 4px; transition: width 1s ease;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 中评率 -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #4b5563;">中立评价占比</span>
+                            <span id="rate-neu-text" style="font-weight: bold; color: var(--neu-color);">--%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
+                            <div id="rate-neu-bar" style="height: 100%; width: 0%; background: var(--neu-color); border-radius: 4px; transition: width 1s ease;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 差评预警率 -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span style="color: #4b5563;">差评预警率 (负面占比)</span>
+                            <span id="rate-neg-text" style="font-weight: bold; color: var(--neg-color);">--%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
+                            <div id="rate-neg-bar" style="height: 100%; width: 0%; background: var(--neg-color); border-radius: 4px; transition: width 1s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：关键词分析 -->
+            <div class="card">
+                <div class="card-header">消费者声音词频洞察 (Top 30)</div>
+                <div class="kw-section">
+                    <div class="kw-group">
+                        <div class="kw-group-title"><span class="dot" style="background:var(--pos-color)"></span> 核心优势 (正面高频词)</div>
+                        <div class="kw-tags" id="kw-pos"><span style="color:#9ca3af;font-size:13px;">等待数据...</span></div>
+                    </div>
+                    <div class="kw-group">
+                        <div class="kw-group-title"><span class="dot" style="background:var(--neu-color)"></span> 中立反馈 (中评高频词)</div>
+                        <div class="kw-tags" id="kw-neu"><span style="color:#9ca3af;font-size:13px;">等待数据...</span></div>
+                    </div>
+                    <div class="kw-group">
+                        <div class="kw-group-title"><span class="dot" style="background:var(--neg-color)"></span> 改进痛点 (负面高频词)</div>
+                        <div class="kw-tags" id="kw-neg"><span style="color:#9ca3af;font-size:13px;">等待数据...</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化 ECharts (明亮主题)
+        var pieChart = echarts.init(document.getElementById('pieChart'));
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loadingOverlay').style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/analyze_batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.error) { alert(data.error); return; }
+
+                // 更新 KPI 数字
+                const getVal = (name) => data.distribution.find(d => d.name === name)?.value || 0;
+                document.getElementById('kpi-total').innerText = data.total.toLocaleString();
+                document.getElementById('kpi-pos').innerText = getVal("正面").toLocaleString();
+                document.getElementById('kpi-neu').innerText = getVal("中评").toLocaleString();
+                document.getElementById('kpi-neg').innerText = getVal("负面").toLocaleString();
+
+                // 渲染图表及进度条
+                renderChart(data.distribution);
+
+                // 渲染标签云
+                renderTags('kw-pos', data.keywords["正面"], 'pos');
+                renderTags('kw-neu', data.keywords["中评"], 'neu');
+                renderTags('kw-neg', data.keywords["负面"], 'neg');
+
+            } catch (error) {
+                alert("上传分析失败，请检查后台服务！");
+                console.error(error);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('fileInput').value = ''; // 重置上传
+            }
+        }
+
+        function renderChart(distribution) {
+            // 1. 计算总数据，用于计算百分比
+            const total = distribution.reduce((sum, item) => sum + item.value, 0);
+            
+            // 2. 渲染 ECharts (去掉饼图上的悬浮标签，让页面更干净)
+            pieChart.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+                legend: { bottom: '0', icon: 'circle', itemWidth: 8, itemHeight: 8, textStyle: { color: '#6b7280', fontSize: 12 } },
+                color: ['#10b981', '#f59e0b', '#ef4444'],
+                series: [{
+                    name: '情感分布',
+                    type: 'pie',
+                    radius: ['55%', '75%'], // 环形，留出空间
+                    center: ['50%', '45%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+                    label: { show: false },
+                    labelLine: { show: false },
+                    data: distribution
+                }]
+            });
+
+            // 3. 动态计算并填充下方的进度条
+            const posData = distribution.find(d => d.name === "正面")?.value || 0;
+            const neuData = distribution.find(d => d.name === "中评")?.value || 0;
+            const negData = distribution.find(d => d.name === "负面")?.value || 0;
+
+            const posRate = ((posData / total) * 100).toFixed(1);
+            const neuRate = ((neuData / total) * 100).toFixed(1);
+            const negRate = ((negData / total) * 100).toFixed(1);
+
+            // 更新文字
+            document.getElementById('rate-pos-text').innerText = posRate + '%';
+            document.getElementById('rate-neu-text').innerText = neuRate + '%';
+            document.getElementById('rate-neg-text').innerText = negRate + '%';
+
+            // 更新进度条宽度 (使用 setTimeout 触发 CSS transition 动画)
+            setTimeout(() => {
+                document.getElementById('rate-pos-bar').style.width = posRate + '%';
+                document.getElementById('rate-neu-bar').style.width = neuRate + '%';
+                document.getElementById('rate-neg-bar').style.width = negRate + '%';
+            }, 100);
+        }
+
+        function renderTags(containerId, keywords, className) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            if (keywords && keywords.length > 0) {
+                keywords.forEach(kw => {
+                    const span = document.createElement('span');
+                    span.className = `tag ${className}`;
+                    span.innerText = kw;
+                    container.appendChild(span);
+                });
+            } else {
+                container.innerHTML = '<span style="color:#9ca3af;font-size:13px;">当前分类数据不足以提取关键词</span>';
+            }
+        }
+    </script>
+</body>
+</html>
