@@ -29,13 +29,17 @@
 
 ### 1. 商业级数据看板 (前端)
 *(请在此处拖入你的前端大屏截图)*
-![数据大屏展示](此处替换为你的图片链接)
+![数据大屏展示](demo1.png)
+<img width="1913" height="958" alt="demo1" src="https://github.com/user-attachments/assets/159d371f-5fe6-49bd-9b1e-7aea2921c844" />
+
 
 ### 2. API 接口文档 (FastAPI)
-*(请在此处拖入你的 Swagger UI 截图)*
-![API接口展示](此处替换为你的图片链接)
+![API接口展示](demo2.png)
+<img width="1903" height="965" alt="demo2" src="https://github.com/user-attachments/assets/60357bba-2dba-4253-925a-cdadb496e7ce" />
 
-## 🚀 快速开始
+
+## 🚀 快速开始![Uploading demo1.png…]()
+
 
 ### 1. 环境准备
 克隆项目并在本地创建虚拟环境：
